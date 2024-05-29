@@ -44,6 +44,13 @@ class Message(Base):
     is_sent_by_user = Column(Boolean, nullable=False)
     created_at = Column(DateTime, default=func.now())
 
+class Payment(Base):
+    __tablename__ = 'payments'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    is_paid = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=func.now())
+
 Base.metadata.create_all(engine)
 
 
@@ -87,6 +94,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Récupérer les 3 derniers messages de l'utilisateur et de l'IA
     recent_messages = session.query(Message).filter_by(user_id=db_user.id).order_by(Message.created_at.desc()).limit(6).all()
     recent_messages = reversed(recent_messages)  # Reverse to maintain the order
+
+    # Vérifier le nombre de messages envoyés par l'utilisateur
+    user_message_count = session.query(Message).filter_by(user_id=db_user.id, is_sent_by_user=True).count()
+
+    if user_message_count >= 5:
+        payment = session.query(Payment).filter_by(user_id=db_user.id, is_paid=False).first()
+        if not payment:
+            payment = Payment(user_id=db_user.id)
+            session.add(payment)
+            session.commit()
+            payment_url = "https://example.com/pay?user_id={}".format(db_user.id)  # Remplacez par votre lien de paiement réel
+            await update.message.reply_text(f"Vous avez atteint la limite de messages gratuits. Veuillez payer pour continuer à utiliser le service en cliquant sur ce lien : {payment_url}")
+            return
+        else:
+            if not payment.is_paid:
+                payment_url = "https://example.com/pay?user_id={}".format(db_user.id)  # Remplacez par votre lien de paiement réel
+                await update.message.reply_text(f"Veuillez payer pour continuer à utiliser le service en cliquant sur ce lien : {payment_url}")
+                return
 
     conversation_history = ""
     for msg in recent_messages:
