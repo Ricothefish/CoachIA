@@ -1,2 +1,4 @@
 .env
 telegram_bot.db
+.vscode
+__pycache__

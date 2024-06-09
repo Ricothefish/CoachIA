@@ -5,7 +5,7 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
-from handlers import start, handle_message, audio_handler, cancel
+from handlers import start, handle_message, audio_handler, cancel, manage
 
 load_dotenv()
 
@@ -18,10 +18,11 @@ logger = logging.getLogger(__name__)
 def main() -> None:
     """Run the bot."""
     # Create the Application and pass it your bot's token.
-    application = Application.builder().token(os.getenv('TELEGRAM_KEY')).build()
+    application = Application.builder().token(os.getenv('TELEGRAM_BOT_TOKEN')).build()
 
     # Add handlers
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("manage", manage))
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.VOICE & ~filters.COMMAND, audio_handler))

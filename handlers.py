@@ -1,10 +1,17 @@
 import logging
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from pathlib import Path
+from dotenv import load_dotenv
+from datetime import datetime
+import os
 
-from database import session, User, Message, Payment
+from database import session, User, Message, Subscription
 from openai_client import generate_response, transcribe_audio
+
+load_dotenv()
+
+DOMAIN = os.getenv('DOMAIN')
 
 logger = logging.getLogger(__name__)
 
@@ -17,37 +24,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         session.commit()
     await update.message.reply_text("Bonjour! Parlez-moi de votre problème.")
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_message = update.message.text
-    user = update.message.from_user
-    db_user = session.query(User).filter_by(user_id=user.id).first()
-
-    # Sauvegarder le message de l'utilisateur
-    user_msg = Message(user_id=db_user.id, message=user_message, is_sent_by_user=True)
-    session.add(user_msg)
-    session.commit()
-
-    # Récupérer les 3 derniers messages de l'utilisateur et de l'IA
-    recent_messages = session.query(Message).filter_by(user_id=db_user.id).order_by(Message.created_at.desc()).limit(6).all()
-    recent_messages = reversed(recent_messages)  # Reverse to maintain the order
-
-    # Vérifier le nombre de messages envoyés par l'utilisateur
-    user_message_count = session.query(Message).filter_by(user_id=db_user.id, is_sent_by_user=True).count()
+def check_user_quota(db_user):
+    user_message_count = session.query(Message).filter_by(user_id=db_user.user_id, is_sent_by_user=True).count()
 
     if user_message_count >= 5:
-        payment = session.query(Payment).filter_by(user_id=db_user.id, is_paid=False).first()
-        if not payment:
-            payment = Payment(user_id=db_user.id)
-            session.add(payment)
-            session.commit()
-            payment_url = f"https://example.com/pay?user_id={db_user.id}"  # Remplacez par votre lien de paiement réel
-            await update.message.reply_text(f"Vous avez atteint la limite de messages gratuits. Veuillez payer pour continuer à utiliser le service en cliquant sur ce lien : {payment_url}")
-            return
-        else:
-            if not payment.is_paid:
-                payment_url = f"https://example.com/pay?user_id={db_user.id}"  # Remplacez par votre lien de paiement réel
-                await update.message.reply_text(f"Veuillez payer pour continuer à utiliser le service en cliquant sur ce lien : {payment_url}")
-                return
+        payment = session.query(Subscription).filter_by(user_id=db_user.user_id).order_by(Subscription.created_at.desc()).first()
+        
+        if not payment or not payment.end_date or payment.end_date < datetime.utcnow():
+            return False
+    return True
+
+def create_message_history(db_user):
+    recent_messages = session.query(Message).filter_by(user_id=db_user.user_id).order_by(Message.created_at.desc()).limit(6).all()
+    recent_messages = reversed(recent_messages)  # Reverse to maintain the order
 
     conversation_history = ""
     for msg in recent_messages:
@@ -55,11 +44,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             conversation_history += f"utilisateur: {msg.message}\n"
         else:
             conversation_history += f"toi: {msg.message}\n"
+    
+    return conversation_history
 
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_message = update.message.text
+    user = update.message.from_user
+    db_user = session.query(User).filter_by(user_id=user.id).first()
+
+    # Sauvegarder le message de l'utilisateur
+    user_msg = Message(user_id=db_user.user_id, message=user_message, is_sent_by_user=True)
+    session.add(user_msg)
+    session.commit()
+
+    if not check_user_quota(db_user):
+        payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
+        text = f"Vous avez atteint la limite de messages gratuits. Veuillez payer pour continuer à utiliser le service en cliquant sur ce lien : {payment_url}"
+        bot_msg = Message(user_id=db_user.user_id, message=text, is_sent_by_user=False)
+        session.add(bot_msg)
+        session.commit()
+
+        
+        await update.message.reply_text(
+            text,
+        )
+        return
+
+    conversation_history = create_message_history(db_user)
     ai_response = generate_response(conversation_history, user_message)
 
     # Sauvegarder la réponse de l'IA
-    bot_msg = Message(user_id=db_user.id, message=ai_response, is_sent_by_user=False)
+    bot_msg = Message(user_id=db_user.user_id, message=ai_response, is_sent_by_user=False)
     session.add(bot_msg)
     session.commit()
 
@@ -76,25 +91,48 @@ async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     db_user = session.query(User).filter_by(user_id=user.id).first()
 
     # Sauvegarder le message de l'utilisateur
-    user_msg = Message(user_id=db_user.id, message=user_message, is_sent_by_user=True)
+    user_msg = Message(user_id=db_user.user_id, message=user_message, is_sent_by_user=True)
     session.add(user_msg)
     session.commit()
 
-    # Récupérer les 3 derniers messages de l'utilisateur et de l'IA
-    recent_messages = session.query(Message).filter_by(user_id=db_user.id).order_by(Message.created_at.desc()).limit(6).all()
-    recent_messages = reversed(recent_messages)  # Reverse to maintain the order
+    if not check_user_quota(db_user):
+        payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
+        text = f"Vous avez atteint la limite de messages gratuits. Veuillez payer pour continuer à utiliser le service en cliquant sur ce lien : {payment_url}"
 
-    conversation_history = ""
-    for msg in recent_messages:
-        if msg.is_sent_by_user:
-            conversation_history += f"utilisateur: {msg.message}\n"
-        else:
-            conversation_history += f"toi: {msg.message}\n"
+        bot_msg = Message(user_id=db_user.user_id, message=text, is_sent_by_user=False)
+        session.add(bot_msg)
+        session.commit()
 
+        
+        await update.message.reply_text(
+            text,
+        )
+        return
+
+    conversation_history = create_message_history(db_user)
     ai_response = generate_response(conversation_history, user_message)
+
+    # Sauvegarder la réponse de l'IA
+    bot_msg = Message(user_id=db_user.user_id, message=ai_response, is_sent_by_user=False)
+    session.add(bot_msg)
+    session.commit()
+
     await update.message.reply_text(ai_response)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
     await update.message.reply_text("Bye! I hope we can talk again some day.")
+
+async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.message.from_user
+    db_user = session.query(User).filter_by(user_id=user.id).first()
+
+    if db_user:
+        # URL fixe pour rediriger l'utilisateur vers le portail client
+        manage_url = f"https://{DOMAIN}/create-customer-portal-session?user_id={db_user.user_id}"
+        await update.message.reply_text(
+            f"Gérez votre abonnement en cliquant ici {manage_url}",
+        )
+    else:
+        await update.message.reply_text("Utilisateur non trouvé. Veuillez réessayer.")

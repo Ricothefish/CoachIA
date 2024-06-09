@@ -11,24 +11,25 @@ session = Session()
 
 class User(Base):
     __tablename__ = 'users'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, unique=True, nullable=False)
+    user_id = Column(Integer, primary_key=True, unique=True, nullable=False)
+    stripe_customer_id = Column(String, nullable=True)
     username = Column(String)
     created_at = Column(DateTime, default=func.now())
 
 class Message(Base):
     __tablename__ = 'messages'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
     message = Column(String, nullable=False)
     is_sent_by_user = Column(Boolean, nullable=False)
     created_at = Column(DateTime, default=func.now())
 
-class Payment(Base):
-    __tablename__ = 'payments'
+class Subscription(Base):
+    __tablename__ = 'subscriptions'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    is_paid = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=func.now())
+    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
+    start_date = Column(DateTime)
+    end_date= Column(DateTime)
+    created_at = Column(DateTime, default=func.now())  # Nouvelle colonne ajoutée
 
-Base.metadata.create_all(engine)    
+Base.metadata.create_all(engine)
