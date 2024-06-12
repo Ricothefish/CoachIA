@@ -2,3 +2,10 @@ python-dotenv
 openai
 python-telegram-bot
 sqlalchemy
+stripe
+pymysql
+nest_asyncio
+pytz
+requests
+aiohttp
+flask

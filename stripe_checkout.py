@@ -38,6 +38,12 @@ def send_telegram_message(chat_id, text):
 
     requests.post(telegram_url, data={'chat_id': chat_id, 'text': text})
 
+@app.route('/', methods=['GET'])
+def redirect_to_telegram():
+
+    return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}?start=start')
+
+
 @app.route('/pay', methods=['GET'])
 def create_checkout_session():
     user_id = request.args.get('user_id')
@@ -137,58 +143,6 @@ def create_customer_portal_session():
     )
 
     return redirect(portal_session.url)
-
-"""
-@app.route('/webhook', methods=['POST'])
-def stripe_webhook():
-    print('edd')
-    payload = request.get_data(as_text=True)
-    sig_header = request.headers.get('Stripe-Signature')
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_ENDPOINT_SECRET
-        )
-    except ValueError as e:
-        # Invalid payload
-        return 'Invalid payload', 400
-    except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
-        return 'Invalid signature', 400
-
-    # Handle the event
-    if event['type'] == 'customer.subscription.created':
-        # The payment was successful, update the Payment table
-        session_id = event['data']['object']['id']
-        stripe_customer_id = event['data']['object']['customer']
-        user = session.query(User).filter_by(stripe_customer_id=stripe_customer_id).first()
-        
-        if user:          
-            payment = Subscription(
-                user_id=user.user_id,
-                is_paid=True
-            )
-            session.add(payment)
-            session.commit()
-
-    elif event['type'] == 'customer.subscription.deleted':
-        # The subscription was canceled, update the Payment table
-        stripe_customer_id = event['data']['object']['customer']
-        user = session.query(User).filter_by(stripe_customer_id=stripe_customer_id).first()
-        
-        if user:          
-            payment = Subscription(
-                user_id=user.user_id,
-                is_paid=False
-            )
-            session.add(payment)
-            session.commit()
-
-    return '', 200
-
-
-"""
-
 
 
 
