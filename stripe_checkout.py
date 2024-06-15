@@ -99,14 +99,14 @@ def redirect_to_stripe():
         send_telegram_message(chat_id=user_id, text="Utilisateur inconnu")
         return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
         
-        # Récupérer l'enregistrement de l'abonnement le plus récent pour l'utilisateur
+    # Récupérer l'enregistrement de l'abonnement le plus récent pour l'utilisateur
     subscription = session.query(Subscription)\
         .filter_by(user_id=user_id)\
         .order_by(Subscription.created_at.desc())\
         .first()
 
-    # Vérifier si l'utilisateur a déjà un abonnement payé
-    if subscription and subscription.is_paid:
+    # Vérifier si l'utilisateur a déjà un abonnement actif (end_date dans le futur)
+    if subscription and subscription.end_date and subscription.end_date > datetime.now():
         print("user already subscribed")
         # Rediriger vers le bot Telegram et envoyer un message
         send_telegram_message(user_id, "Vous êtes déjà un utilisateur premium.")
