@@ -48,6 +48,8 @@ def send_telegram_message(chat_id, text):
 @app.route('/', methods=['GET'])
 def redirect_to_telegram():
 
+    print("redirect")
+
     return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}?start=start')
 
 
