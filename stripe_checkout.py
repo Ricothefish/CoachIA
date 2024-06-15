@@ -225,10 +225,12 @@ def handle_invoice_paid(data_object):
         print(f'User not found for stripe_customer_id: {stripe_customer_id}')
 
 
+print("Starting application...")
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=3000)
-
+    port = int(os.environ.get('PORT', 3000))
+    print(f"Running Flask application on port {port}...", flush=True)
+    app.run(host='0.0.0.0', port=port)
 #,ssl_context=('cert.pem', 'key.pem')
 
     
