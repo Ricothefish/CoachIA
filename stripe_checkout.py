@@ -11,11 +11,18 @@ import stripe
 from dotenv import load_dotenv
 from telegram import Bot
 from database import session, Subscription, User, Message
+from flask_sslify import SSLify
 
 # Charger les variables d'environnement à partir du fichier .env
 load_dotenv()
 
 app = Flask(__name__)
+
+ENV = os.getenv('FLASK_ENV')
+
+if( ENV == "prod"):
+    sslify = SSLify(app)
+
 
 stripe.api_key = os.getenv('STRIPE_API_KEY')
 PRODUCT_ID = os.getenv('PRODUCT_ID')
