@@ -10,3 +10,4 @@ requests
 aiohttp
 flask
 flask_sslify
+gunicorn

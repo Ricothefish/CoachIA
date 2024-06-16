@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from telegram import Bot
 from database import session, Subscription, User, Message
 from flask_sslify import SSLify
+import logging
 
 # Charger les variables d'environnement à partir du fichier .env
 load_dotenv()
@@ -59,6 +60,8 @@ def create_checkout_session():
 
     # Vérifier si l'utilisateur existe
     user = session.query(User).filter_by(user_id=user_id).first()
+
+    app.logger.info(user)
 
     # Créer un client Stripe si l'utilisateur n'a pas encore de stripe_customer_id
     if not user.stripe_customer_id:
@@ -226,6 +229,12 @@ def handle_invoice_paid(data_object):
 
 
 print("Starting application...")
+
+# Configurer le logger pour envoyer les messages à stdout
+if __name__ != "__main__":
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 3000))
