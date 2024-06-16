@@ -50,6 +50,7 @@ def send_telegram_message(chat_id, text):
 def redirect_to_telegram():
 
     print("redirect")
+    app.logger.info("redirect")
 
     return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}?start=start')
 
@@ -61,7 +62,7 @@ def create_checkout_session():
     # Vérifier si l'utilisateur existe
     user = session.query(User).filter_by(user_id=user_id).first()
 
-    app.logger.info(user)
+    
 
     # Créer un client Stripe si l'utilisateur n'a pas encore de stripe_customer_id
     if not user.stripe_customer_id:
