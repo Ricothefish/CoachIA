@@ -57,41 +57,55 @@ def redirect_to_telegram():
 
 @app.route('/pay', methods=['GET'])
 def create_checkout_session():
-    user_id = request.args.get('user_id')
+    try:
+        app.logger.info("route pay")
 
-    # Vérifier si l'utilisateur existe
-    user = session.query(User).filter_by(user_id=user_id).first()
+        user_id = request.args.get('user_id')
+        if not user_id:
+            raise ValueError("user_id is required")
 
-    
+        app.logger.info("userId: %s", user_id)
 
-    # Créer un client Stripe si l'utilisateur n'a pas encore de stripe_customer_id
-    if not user.stripe_customer_id:
-        customer = stripe.Customer.create(
-            metadata={"user_id": user_id}
-        )
-        user.stripe_customer_id = customer.id
-        session.commit()
+        # Vérifier si l'utilisateur existe
+        user = session.query(User).filter_by(user_id=user_id).first()
+        if not user:
+            raise ValueError("User not found")
 
-    # Préparer les paramètres pour la création de la session Stripe
-    checkout_session_params = {
-        'payment_method_types': ['card'],
-        'line_items': [{
-            'price': PRODUCT_ID,
-            'quantity': 1,
-        }],
-        'mode': 'subscription',
-        'success_url': f'https://{DOMAIN}/success?session_id={{CHECKOUT_SESSION_ID}}&user_id={user_id}',
-        'cancel_url': f'https://{DOMAIN}/cancel?user_id={user_id}',
-        'customer': user.stripe_customer_id  # Ajouter le stripe_customer_id
-    }
+        # Créer un client Stripe si l'utilisateur n'a pas encore de stripe_customer_id
+        if not user.stripe_customer_id:
+            app.logger.info("no stripe customer id")
+            customer = stripe.Customer.create(metadata={"user_id": user_id})
+            user.stripe_customer_id = customer.id
+            session.commit()
 
-    # Créer la session de paiement
-    checkout_session = stripe.checkout.Session.create(**checkout_session_params)
+            app.logger.info("new stripe customer id: %s", customer.id)
 
-    return jsonify({
-        'id': checkout_session.id,
-        'url': checkout_session.url
-    })
+        # Préparer les paramètres pour la création de la session Stripe
+        checkout_session_params = {
+            'payment_method_types': ['card'],
+            'line_items': [{
+                'price': PRODUCT_ID,
+                'quantity': 1,
+            }],
+            'mode': 'subscription',
+            'success_url': f'https://{DOMAIN}/success?session_id={{CHECKOUT_SESSION_ID}}&user_id={user_id}',
+            'cancel_url': f'https://{DOMAIN}/cancel?user_id={user_id}',
+            'customer': user.stripe_customer_id  # Ajouter le stripe_customer_id
+        }
+
+        # Créer la session de paiement
+        checkout_session = stripe.checkout.Session.create(**checkout_session_params)
+
+        return jsonify({
+            'id': checkout_session.id,
+            'url': checkout_session.url
+        })
+
+    except Exception as e:
+        app.logger.error("An error occurred: %s", str(e))
+        response = jsonify({'error': str(e)})
+        response.status_code = 500
+        return response
 
 @app.route('/redirect_to_stripe', methods=['GET'])
 def redirect_to_stripe():
@@ -99,6 +113,8 @@ def redirect_to_stripe():
 
     # Vérifier si l'utilisateur existe
     user = session.query(User).filter_by(user_id=user_id).first()
+    app.logger.info("user")
+    app.logger.info(user)
     if not user:
         send_telegram_message(chat_id=user_id, text="Utilisateur inconnu")
         return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
@@ -108,10 +124,12 @@ def redirect_to_stripe():
         .filter_by(user_id=user_id)\
         .order_by(Subscription.created_at.desc())\
         .first()
+    app.logger.info("subscription")
+    app.logger.info(subscription)
 
     # Vérifier si l'utilisateur a déjà un abonnement actif (end_date dans le futur)
     if subscription and subscription.end_date and subscription.end_date > datetime.now():
-        print("user already subscribed")
+        app.logger.info("user already subscribed")
         # Rediriger vers le bot Telegram et envoyer un message
         send_telegram_message(user_id, "Vous êtes déjà un utilisateur premium.")
         return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
