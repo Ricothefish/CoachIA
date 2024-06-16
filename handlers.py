@@ -22,7 +22,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         db_user = User(user_id=user.id, username=user.username)
         session.add(db_user)
         session.commit()
-    await update.message.reply_text("Bonjour! Parlez-moi de votre problème.")
+    await update.message.reply_text("Bonjour ! Je suis Julie, votre confidente virtuelle et coach de vie. Je suis ici pour vous écouter et vous conseiller.\n \nCependant, je ne remplace pas un professionnel de santé. Si vous avez des problèmes sérieux, contactez un professionnel ou un service spécialisé. En France, vous pouvez appeler le 3114 pour obtenir immédiatement de l'aide d'une vraie personne. \n \n Hâte de discuter avec vous ! 🌟")
 
 def check_user_quota(db_user):
     user_message_count = session.query(Message).filter_by(user_id=db_user.user_id, is_sent_by_user=True).count()
