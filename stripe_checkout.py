@@ -55,12 +55,12 @@ def redirect_to_telegram():
     return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}?start=start')
 
 
-@app.route('/pay', methods=['GET'])
-def create_checkout_session():
+
+def create_checkout_session(user_id):
     try:
         app.logger.info("route pay")
 
-        user_id = request.args.get('user_id')
+        
         if not user_id:
             raise ValueError("user_id is required")
 
@@ -134,7 +134,7 @@ def redirect_to_stripe():
         send_telegram_message(user_id, "Vous êtes déjà un utilisateur premium.")
         return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
 
-    response = app.test_client().get(f"/pay?user_id={user_id}")
+    response = create_checkout_session(user_id)
     session_url = response.json.get('url')
     return redirect(session_url)
 
