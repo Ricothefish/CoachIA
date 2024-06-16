@@ -59,15 +59,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not check_user_quota(db_user):
         payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
-        text = f"Vous avez atteint la limite de messages gratuits. Veuillez payer pour continuer à utiliser le service en cliquant sur ce lien : {payment_url}"
+        text = f"Vous avez atteint la limite de messages gratuits. Veuillez vous abonnez pour continuer à discuter avec moi."
+
+        
+        # Création du bouton inline
+        keyboard = [[InlineKeyboardButton("👩 Continuer la conversation", url=payment_url)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+
+
         bot_msg = Message(user_id=db_user.user_id, message=text, is_sent_by_user=False)
         session.add(bot_msg)
         session.commit()
 
-        
         await update.message.reply_text(
-            text,
+            text=text,
+            reply_markup=reply_markup
         )
+
         return
 
     conversation_history = create_message_history(db_user)
@@ -97,16 +106,24 @@ async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if not check_user_quota(db_user):
         payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
-        text = f"Vous avez atteint la limite de messages gratuits. Veuillez payer pour continuer à utiliser le service en cliquant sur ce lien : {payment_url}"
+        text = f"Vous avez atteint la limite de messages gratuits. Veuillez vous abonnez pour continuer à discuter avec moi."
+
+        
+        # Création du bouton inline
+        keyboard = [[InlineKeyboardButton("👩 Continuer la conversation", url=payment_url)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+
 
         bot_msg = Message(user_id=db_user.user_id, message=text, is_sent_by_user=False)
         session.add(bot_msg)
         session.commit()
 
-        
         await update.message.reply_text(
-            text,
+            text=text,
+            reply_markup=reply_markup
         )
+
         return
 
     conversation_history = create_message_history(db_user)
@@ -124,15 +141,23 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.info("User %s canceled the conversation.", user.first_name)
     await update.message.reply_text("Bye! I hope we can talk again some day.")
 
+
+
 async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
     db_user = session.query(User).filter_by(user_id=user.id).first()
 
     if db_user:
         # URL fixe pour rediriger l'utilisateur vers le portail client
-        manage_url = f"https://{DOMAIN}/create-customer-portal-session?user_id={db_user.user_id}"
+        manage_url = f"https://www.{DOMAIN}.com/create-customer-portal-session?user_id={db_user.user_id}"
+        # Création du bouton inline
+        keyboard = [[InlineKeyboardButton("Gérer votre abonnement", url=manage_url)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await update.message.reply_text(
-            f"Gérez votre abonnement en cliquant ici {manage_url}",
+            "Cliquez sur le bouton ci-dessous pour gérer votre abonnement.",
+            reply_markup=reply_markup
         )
     else:
         await update.message.reply_text("Utilisateur non trouvé. Veuillez réessayer.")
+
