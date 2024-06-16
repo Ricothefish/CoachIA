@@ -149,7 +149,7 @@ async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if db_user:
         # URL fixe pour rediriger l'utilisateur vers le portail client
-        manage_url = f"https://www.{DOMAIN}.com/create-customer-portal-session?user_id={db_user.user_id}"
+        manage_url = f"https://{DOMAIN}.com/create-customer-portal-session?user_id={db_user.user_id}"
         # Création du bouton inline
         keyboard = [[InlineKeyboardButton("Gérer votre abonnement", url=manage_url)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
