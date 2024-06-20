@@ -42,4 +42,14 @@ class Subscription(Base):
     end_date= Column(DateTime)
     created_at = Column(DateTime, default=func.now())  # Nouvelle colonne ajoutée
 
+
+class Feedback(Base):
+    __tablename__ = 'feedback'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
+    feedback_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+
+
+
 Base.metadata.create_all(engine)

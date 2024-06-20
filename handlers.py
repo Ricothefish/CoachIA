@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import os
 
-from database import session, User, Message, Subscription
+from database import session, User, Message, Subscription, Feedback
 from openai_client import generate_response, transcribe_audio
 
 load_dotenv()
@@ -51,6 +51,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_message = update.message.text
     user = update.message.from_user
     db_user = session.query(User).filter_by(user_id=user.id).first()
+
+    if context.user_data.get('collecting_feedback'):
+        # Traiter le feedback
+        feedback = Feedback(user_id=db_user.user_id, feedback_text=user_message)
+        session.add(feedback)
+        session.commit()
+        
+        await update.message.reply_text(
+            "Merci beaucoup pour votre précieux avis ! Nous allons le prendre en compte. \n \nVous pouvez maintenant reprendre votre conversation normale."
+        )
+        context.user_data['collecting_feedback'] = False
+        return
 
     # Sauvegarder le message de l'utilisateur
     user_msg = Message(user_id=db_user.user_id, message=user_message, is_sent_by_user=True)
@@ -98,6 +110,19 @@ async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     user_message = transcribe_audio(voice_file_path)
     user = update.message.from_user
     db_user = session.query(User).filter_by(user_id=user.id).first()
+
+
+    if context.user_data.get('collecting_feedback'):
+        # Traiter le feedback
+        feedback = Feedback(user_id=db_user.user_id, feedback_text=user_message)
+        session.add(feedback)
+        session.commit()
+        
+        await update.message.reply_text(
+            "Merci beaucoup pour votre précieux avis ! Nous allons le prendre en compte. \n \nVous pouvez maintenant reprendre votre conversation normale."
+        )
+        context.user_data['collecting_feedback'] = False
+        return
 
     # Sauvegarder le message de l'utilisateur
     user_msg = Message(user_id=db_user.user_id, message=user_message, is_sent_by_user=True)
@@ -160,4 +185,19 @@ async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     else:
         await update.message.reply_text("Utilisateur non trouvé. Veuillez réessayer.")
+
+
+# Commande pour initier la collecte des avis
+async def collect_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.message.from_user
+    db_user = session.query(User).filter_by(user_id=user.id).first()
+
+    if db_user:
+        await update.message.reply_text(
+            "Nous aimerions beaucoup connaître votre avis ! \n \nVeuillez partager vos commentaires en répondant à ce message."
+        )
+        context.user_data['collecting_feedback'] = True
+    else:
+        await update.message.reply_text("Utilisateur non trouvé. Veuillez réessayer.")
+
 

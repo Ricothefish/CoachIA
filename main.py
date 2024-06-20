@@ -5,7 +5,7 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
-from handlers import start, handle_message, audio_handler, cancel, manage
+from handlers import start, handle_message, audio_handler, cancel, manage, collect_feedback
 
 load_dotenv()
 
@@ -24,8 +24,10 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("manage", manage))
     application.add_handler(CommandHandler("cancel", cancel))
+    application.add_handler(CommandHandler("feedback", collect_feedback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.VOICE & ~filters.COMMAND, audio_handler))
+    
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
