@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import openai
 from pathlib import Path
+import uuid
 
 load_dotenv()
 openai.api_key = os.getenv('OPEN_AI_KEY')
@@ -25,3 +26,14 @@ def transcribe_audio(audio_file_path: str) -> str:
         language="fr"
     )
     return transcription
+
+def create_speech(text: str, voice: str = "alloy", model: str = "tts-1") -> str:
+    unique_filename = f"response_voice_{uuid.uuid4()}.mp3"
+    speech_file_path = Path(unique_filename)
+    response = openai.audio.speech.create(
+        model=model,
+        voice=voice,
+        input=text
+    )
+    response.stream_to_file(speech_file_path)
+    return str(speech_file_path)

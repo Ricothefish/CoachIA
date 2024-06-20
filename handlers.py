@@ -4,10 +4,11 @@ from telegram.ext import ContextTypes
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime
+import uuid
 import os
 
 from database import session, User, Message, Subscription, Feedback
-from openai_client import generate_response, transcribe_audio
+from openai_client import generate_response, transcribe_audio, create_speech
 
 load_dotenv()
 
@@ -104,13 +105,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Télécharger le message vocal
     voice_file = await update.message.voice.get_file()
-    voice_file_path = "user_voice.ogg"
+    voice_file_path = f"user_voice_{uuid.uuid4()}.ogg"
     await voice_file.download_to_drive(voice_file_path)
 
     user_message = transcribe_audio(voice_file_path)
     user = update.message.from_user
     db_user = session.query(User).filter_by(user_id=user.id).first()
-
 
     if context.user_data.get('collecting_feedback'):
         # Traiter le feedback
@@ -131,15 +131,12 @@ async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if not check_user_quota(db_user):
         payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
-        text = f"Vous avez atteint la limite de messages gratuits. Veuillez vous abonnez pour continuer à discuter avec moi."
+        text = "Vous avez atteint la limite de messages gratuits. Veuillez vous abonnez pour continuer à discuter avec moi."
 
-        
         # Création du bouton inline
         keyboard = [[InlineKeyboardButton("👩 Continuer la conversation", url=payment_url)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-
-
         bot_msg = Message(user_id=db_user.user_id, message=text, is_sent_by_user=False)
         session.add(bot_msg)
         session.commit()
@@ -159,13 +156,22 @@ async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     session.add(bot_msg)
     session.commit()
 
-    await update.message.reply_text(ai_response)
+    # Générer un fichier audio à partir de la réponse de l'IA avec un nom de fichier unique
+     # Générer un fichier audio à partir de la réponse de l'IA en appelant create_speech
+    speech_file_path = create_speech(ai_response)
+
+    # Envoyer le fichier audio à l'utilisateur
+    with open(speech_file_path, 'rb') as audio_file:
+        await update.message.reply_voice(voice=audio_file)
+
+    # Supprimer le fichier audio après l'envoi
+    #os.remove(speech_file_path)
+    #os.remove(voice_file_path)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
     await update.message.reply_text("Bye! I hope we can talk again some day.")
-
 
 
 async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
