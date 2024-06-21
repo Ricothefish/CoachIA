@@ -23,7 +23,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         db_user = User(user_id=user.id, username=user.username)
         session.add(db_user)
         session.commit()
-    await update.message.reply_text("Bonjour ! Je suis Julie, votre confidente virtuelle et coach de vie. Je suis ici pour vous écouter et vous conseiller.\n \nCependant, je ne remplace pas un professionnel de santé. Si vous avez des problèmes sérieux, contactez un professionnel ou un service spécialisé. En France, vous pouvez appeler le 3114 pour obtenir immédiatement de l'aide d'une vraie personne. \n \n Hâte de discuter avec vous ! 🌟")
+    await update.message.reply_text("Bonjour ! Je suis Julie, ta confidente virtuelle et coach de vie. Je suis ici pour t’écouter et te conseiller.\n \n Cependant, je ne remplace pas un professionnel de santé. Si tu as des problèmes sérieux, contacte un professionnel ou un service spécialisé. En France, tu peux appeler le 3114 pour obtenir immédiatement de l'aide d'une vraie personne. \n \nTu peux m’envoyer des messages 💬 ou des vocaux 🔊\n \nHâte de discuter avec toi ! 🌟")
 
 def check_user_quota(db_user):
     user_message_count = session.query(Message).filter_by(user_id=db_user.user_id, is_sent_by_user=True).count()
@@ -72,11 +72,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not check_user_quota(db_user):
         payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
-        text = f"Vous avez atteint la limite de messages gratuits. Veuillez vous abonnez pour continuer à discuter avec moi."
+        text = f"Tu as atteint la limite de message. \n \nPour continuer à discuter ensemble, un abonnement de 9,99€ / mois (sans engagement) est nécessaire.\n \nJe suis dispo 24/24, toujours là pour t’aider à surmonter tes périodes difficiles et à devenir la meilleure version de toi même ☺️ \n\nClique sur “Continuer à discuter” pour ne plus être seul face à tes problèmes."
 
         
         # Création du bouton inline
-        keyboard = [[InlineKeyboardButton("👩 Continuer la conversation", url=payment_url)]]
+        keyboard = [[InlineKeyboardButton("👩 Continuer à discuter", url=payment_url)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
 
