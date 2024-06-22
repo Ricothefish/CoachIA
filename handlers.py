@@ -72,7 +72,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not check_user_quota(db_user):
         payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
-        text = f"Tu as atteint la limite de message. \n \nPour continuer à discuter ensemble, un abonnement de 9,99€ / mois (sans engagement) est nécessaire.\n \nJe suis dispo 24/24, toujours là pour t’aider à surmonter tes périodes difficiles et à devenir la meilleure version de toi même ☺️ \n\nClique sur “Continuer à discuter” pour ne plus être seul face à tes problèmes."
+        text = f"Tu as atteint la limite de message 🙁 \n \nPour continuer à discuter ensemble, un abonnement de 9,99€ / mois (sans engagement) est nécessaire.\n \nJe suis dispo 24/24, toujours là pour t’aider à surmonter tes périodes difficiles et à devenir la meilleure version de toi même ☺️ \n\nClique sur “Continuer à discuter” pour ne plus être seul face à tes problèmes."
 
         
         # Création du bouton inline
@@ -131,7 +131,7 @@ async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if not check_user_quota(db_user):
         payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
-        text = "Vous avez atteint la limite de messages gratuits. Veuillez vous abonnez pour continuer à discuter avec moi."
+        text = "Tu as atteint la limite de message 🙁 \n \nPour continuer à discuter ensemble, un abonnement de 9,99€ / mois (sans engagement) est nécessaire.\n \nJe suis dispo 24/24, toujours là pour t’aider à surmonter tes périodes difficiles et à devenir la meilleure version de toi même ☺️ \n\nClique sur “Continuer à discuter” pour ne plus être seul face à tes problèmes."
 
         # Création du bouton inline
         keyboard = [[InlineKeyboardButton("👩 Continuer la conversation", url=payment_url)]]

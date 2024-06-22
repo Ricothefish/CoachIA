@@ -28,7 +28,7 @@ def transcribe_audio(audio_file_path: str) -> str:
     return transcription
 
 def create_speech(text: str, voice: str = "alloy", model: str = "tts-1") -> str:
-    unique_filename = f"response_voice_{uuid.uuid4()}.mp3"
+    unique_filename = f"response_voice_{uuid.uuid4()}.ogg"
     speech_file_path = Path(unique_filename)
     response = openai.audio.speech.create(
         model=model,
