@@ -23,7 +23,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         db_user = User(user_id=user.id, username=user.username)
         session.add(db_user)
         session.commit()
-    await update.message.reply_text("Bonjour ! Je suis Julie, ta confidente virtuelle et coach de vie. Je suis ici pour t’écouter et te conseiller.\n \n Cependant, je ne remplace pas un professionnel de santé. Si tu as des problèmes sérieux, contacte un professionnel ou un service spécialisé. En France, tu peux appeler le 3114 pour obtenir immédiatement de l'aide d'une vraie personne. \n \nTu peux m’envoyer des messages 💬 ou des vocaux 🔊\n \nHâte de discuter avec toi ! 🌟")
+    await update.message.reply_text("Hello! I am Julie, your virtual confidant and life coach. I am here to listen and advise you.\n \nHowever, I do not replace a healthcare professional. If you have serious problems, contact a professional or a specialized service.\n \nYou can send me messages 💬 or voice notes 🔊\n \nLooking forward to chatting with you! 🌟")
 
 def check_user_quota(db_user):
     user_message_count = session.query(Message).filter_by(user_id=db_user.user_id, is_sent_by_user=True).count()
@@ -42,9 +42,9 @@ def create_message_history(db_user):
     conversation_history = ""
     for msg in recent_messages:
         if msg.is_sent_by_user:
-            conversation_history += f"utilisateur: {msg.message}\n"
+            conversation_history += f"user: {msg.message}\n"
         else:
-            conversation_history += f"toi: {msg.message}\n"
+            conversation_history += f"you: {msg.message}\n"
     
     return conversation_history
 
@@ -60,7 +60,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         session.commit()
         
         await update.message.reply_text(
-            "Merci beaucoup pour votre précieux avis ! Nous allons le prendre en compte. \n \nVous pouvez maintenant reprendre votre conversation normale."
+            "Thank you very much for your valuable feedback! We will take it into account. \n \nYou can now resume your normal conversation."
         )
         context.user_data['collecting_feedback'] = False
         return
@@ -72,11 +72,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not check_user_quota(db_user):
         payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
-        text = f"Tu as atteint la limite de message 🙁 \n \nPour continuer à discuter ensemble, un abonnement de 9,99€ / mois (sans engagement) est nécessaire.\n \nJe suis dispo 24/24, toujours là pour t’aider à surmonter tes périodes difficiles et à devenir la meilleure version de toi même ☺️ \n\nClique sur “Continuer à discuter” pour ne plus être seul face à tes problèmes."
+        text = f"You have reached the message limit 🙁 \n \nTo continue our conversation, a subscription of $9.99/month (no commitment) is required.\n \nI am available 24/7, always here to help you through tough times and to become the best version of yourself \n\nClick on “Continue chatting” to no longer face your problems alone."
 
         
         # Création du bouton inline
-        keyboard = [[InlineKeyboardButton("👩 Continuer à discuter", url=payment_url)]]
+        keyboard = [[InlineKeyboardButton("👩 Continue chatting", url=payment_url)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
 
@@ -119,7 +119,7 @@ async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         session.commit()
         
         await update.message.reply_text(
-            "Merci beaucoup pour votre précieux avis ! Nous allons le prendre en compte. \n \nVous pouvez maintenant reprendre votre conversation normale."
+            "Thank you very much for your valuable feedback! We will take it into account. \n \nYou can now resume your normal conversation."
         )
         context.user_data['collecting_feedback'] = False
         return
@@ -131,10 +131,10 @@ async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if not check_user_quota(db_user):
         payment_url = f"https://{DOMAIN}/redirect_to_stripe?user_id={db_user.user_id}"
-        text = "Tu as atteint la limite de message 🙁 \n \nPour continuer à discuter ensemble, un abonnement de 9,99€ / mois (sans engagement) est nécessaire.\n \nJe suis dispo 24/24, toujours là pour t’aider à surmonter tes périodes difficiles et à devenir la meilleure version de toi même ☺️ \n\nClique sur “Continuer à discuter” pour ne plus être seul face à tes problèmes."
+        text = "You have reached the message limit 🙁 \n \nTo continue our conversation, a subscription of $9.99/month (no commitment) is required.\n \nI am available 24/7, always here to help you through tough times and to become the best version of yourself \n\nClick on “Continue chatting” to no longer face your problems alone."
 
         # Création du bouton inline
-        keyboard = [[InlineKeyboardButton("👩 Continuer la conversation", url=payment_url)]]
+        keyboard = [[InlineKeyboardButton("👩 Continue chatting", url=payment_url)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         bot_msg = Message(user_id=db_user.user_id, message=text, is_sent_by_user=False)
@@ -182,15 +182,15 @@ async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # URL fixe pour rediriger l'utilisateur vers le portail client
         manage_url = f"https://{DOMAIN}/create-customer-portal-session?user_id={db_user.user_id}"
         # Création du bouton inline
-        keyboard = [[InlineKeyboardButton("Gérer votre abonnement", url=manage_url)]]
+        keyboard = [[InlineKeyboardButton("Manage subscription", url=manage_url)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            "Cliquez sur le bouton ci-dessous pour gérer votre abonnement.",
+            "Click here to manage your subscription.",
             reply_markup=reply_markup
         )
     else:
-        await update.message.reply_text("Utilisateur non trouvé. Veuillez réessayer.")
+        await update.message.reply_text("User not found, please retry again.")
 
 
 # Commande pour initier la collecte des avis
@@ -204,6 +204,6 @@ async def collect_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         context.user_data['collecting_feedback'] = True
     else:
-        await update.message.reply_text("Utilisateur non trouvé. Veuillez réessayer.")
+        await update.message.reply_text("User not found, please retry again.")
 
 

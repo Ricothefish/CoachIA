@@ -131,7 +131,7 @@ def redirect_to_stripe():
     if subscription and subscription.end_date and subscription.end_date > datetime.now():
         app.logger.info("user already subscribed")
         # Rediriger vers le bot Telegram et envoyer un message
-        send_telegram_message(user_id, "Vous êtes déjà un utilisateur premium.")
+        send_telegram_message(user_id, "You already have a subscription")
         return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
 
     response = create_checkout_session(user_id)
@@ -143,7 +143,7 @@ def payment_success():
     user_id = request.args.get('user_id')
 
     # Envoyer un message de succès à l'utilisateur Telegram
-    send_telegram_message(chat_id=user_id, text="Votre paiement a été effectué avec succès!")
+    send_telegram_message(chat_id=user_id, text="Your payment was successful.")
 
     return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
 
@@ -152,7 +152,7 @@ def payment_cancel():
     user_id = request.args.get('user_id')
 
     # Envoyer un message d'annulation à l'utilisateur Telegram
-    send_telegram_message(chat_id=user_id, text="Votre paiement a été annulé. Si vous souhaitez continuer à utiliser le service, veuillez réessayer.")
+    send_telegram_message(chat_id=user_id, text="Your payment has been canceled. If you wish to continue using the service, please try again.")
     
     return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
 

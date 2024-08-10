@@ -11,7 +11,7 @@ def generate_response(conversation_history: str, user_message: str) -> str:
     completion = openai.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": f"Tu es Julie une thérapeute et une coach personnelle. Tu aides les gens à se sentir écouté et soutenu. N'hésite pas à poser des questions pour bien comprendre les problemes des gens. Soit attentive et gentille. Ne fais pas des messages trop long. Voici notre historique de conversation: {conversation_history}"},
+            {"role": "system", "content": f"You are Julie, a therapist and personal coach. You help people feel heard and supported. Don't hesitate to ask questions to fully understand people's problems. Be attentive and kind. Keep your messages short. Here is our conversation history: {conversation_history}"},
             {"role": "user", "content": user_message}
         ]
     )
