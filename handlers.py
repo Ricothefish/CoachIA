@@ -67,9 +67,13 @@ def create_message_history(db_user):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_message = update.message.text
     user = update.message.from_user
-    
+
     with session_scope() as session:
         db_user = session.query(User).filter_by(user_id=user.id).first()
+
+        if not db_user:
+            await update.message.reply_text("User not found, please retry again.")
+            return
 
         if context.user_data.get('collecting_feedback'):
             feedback = Feedback(user_id=db_user.user_id, feedback_text=user_message)
@@ -107,6 +111,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         session.add(bot_msg)
 
     await update.message.reply_text(ai_response)
+
 
 async def audio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     voice_file = await update.message.voice.get_file()
