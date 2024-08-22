@@ -173,7 +173,7 @@ def create_customer_portal_session():
         if not user or not user.stripe_customer_id:
             return "User has no active Stripe customer ID", 400
 
-    stripe_customer_id = user.stripe_customer_id
+        stripe_customer_id = user.stripe_customer_id
 
     # Créer une session de portail client
     portal_session = stripe.billing_portal.Session.create(
