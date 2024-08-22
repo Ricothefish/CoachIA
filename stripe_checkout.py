@@ -13,6 +13,7 @@ from telegram import Bot
 from database import session, Subscription, User, Message
 from flask_sslify import SSLify
 import logging
+from contextlib import contextmanager
 
 # Charger les variables d'environnement à partir du fichier .env
 load_dotenv()
@@ -21,9 +22,8 @@ app = Flask(__name__)
 
 ENV = os.getenv('FLASK_ENV')
 
-if( ENV == "prod"):
+if ENV == "prod":
     sslify = SSLify(app)
-
 
 stripe.api_key = os.getenv('STRIPE_API_KEY')
 PRODUCT_ID = os.getenv('PRODUCT_ID')
@@ -35,50 +35,58 @@ nest_asyncio.apply()
 
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
+# Context manager for database session
+@contextmanager
+def session_scope():
+    """Provide a transactional scope around a series of operations."""
+    try:
+        yield session
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
 # Fonction asynchrone pour envoyer un message Telegram
 def send_telegram_message(chat_id, text):
     bot_token = TELEGRAM_BOT_TOKEN
     telegram_url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
 
-    user_msg = Message(user_id=chat_id, message=text, is_sent_by_user=False)
-    session.add(user_msg)
-    session.commit()
+    with session_scope() as session:
+        user_msg = Message(user_id=chat_id, message=text, is_sent_by_user=False)
+        session.add(user_msg)
 
     requests.post(telegram_url, data={'chat_id': chat_id, 'text': text})
 
 @app.route('/', methods=['GET'])
 def redirect_to_telegram():
-
     print("redirect")
     app.logger.info("redirect")
-
     return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}?start=start')
-
-
 
 def create_checkout_session(user_id):
     try:
         app.logger.info("route pay")
-
         
         if not user_id:
             raise ValueError("user_id is required")
 
         app.logger.info("userId: %s", user_id)
 
-        # Vérifier si l'utilisateur existe
-        user = session.query(User).filter_by(user_id=user_id).first()
-        if not user:
-            raise ValueError("User not found")
+        with session_scope() as session:
+            # Vérifier si l'utilisateur existe
+            user = session.query(User).filter_by(user_id=user_id).first()
+            if not user:
+                raise ValueError("User not found")
 
-        # Créer un client Stripe si l'utilisateur n'a pas encore de stripe_customer_id
-        if not user.stripe_customer_id:
-            app.logger.info("no stripe customer id")
-            customer = stripe.Customer.create(metadata={"user_id": user_id})
-            user.stripe_customer_id = customer.id
-            session.commit()
+            # Créer un client Stripe si l'utilisateur n'a pas encore de stripe_customer_id
+            if not user.stripe_customer_id:
+                app.logger.info("no stripe customer id")
+                customer = stripe.Customer.create(metadata={"user_id": user_id})
+                user.stripe_customer_id = customer.id
 
-            app.logger.info("new stripe customer id: %s", customer.id)
+                app.logger.info("new stripe customer id: %s", customer.id)
 
         # Préparer les paramètres pour la création de la session Stripe
         checkout_session_params = {
@@ -111,28 +119,28 @@ def create_checkout_session(user_id):
 def redirect_to_stripe():
     user_id = request.args.get('user_id')
 
-    # Vérifier si l'utilisateur existe
-    user = session.query(User).filter_by(user_id=user_id).first()
-    app.logger.info("user")
-    app.logger.info(user)
-    if not user:
-        send_telegram_message(chat_id=user_id, text="Utilisateur inconnu")
-        return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
+    with session_scope() as session:
+        # Vérifier si l'utilisateur existe
+        user = session.query(User).filter_by(user_id=user_id).first()
+        app.logger.info("user")
+        app.logger.info(user)
+        if not user:
+            send_telegram_message(chat_id=user_id, text="Utilisateur inconnu")
+            return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
         
-    # Récupérer l'enregistrement de l'abonnement le plus récent pour l'utilisateur
-    subscription = session.query(Subscription)\
-        .filter_by(user_id=user_id)\
-        .order_by(Subscription.created_at.desc())\
-        .first()
-    app.logger.info("subscription")
-    app.logger.info(subscription)
+        # Récupérer l'enregistrement de l'abonnement le plus récent pour l'utilisateur
+        subscription = session.query(Subscription)\
+            .filter_by(user_id=user_id)\
+            .order_by(Subscription.created_at.desc())\
+            .first()
+        app.logger.info("subscription")
+        app.logger.info(subscription)
 
-    # Vérifier si l'utilisateur a déjà un abonnement actif (end_date dans le futur)
-    if subscription and subscription.end_date and subscription.end_date > datetime.now():
-        app.logger.info("user already subscribed")
-        # Rediriger vers le bot Telegram et envoyer un message
-        send_telegram_message(user_id, "You already have a subscription")
-        return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
+        # Vérifier si l'utilisateur a déjà un abonnement actif (end_date dans le futur)
+        if subscription and subscription.end_date and subscription.end_date > datetime.now():
+            app.logger.info("user already subscribed")
+            send_telegram_message(user_id, "You already have a subscription")
+            return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
 
     response = create_checkout_session(user_id)
     session_url = response.json.get('url')
@@ -144,7 +152,6 @@ def payment_success():
 
     # Envoyer un message de succès à l'utilisateur Telegram
     send_telegram_message(chat_id=user_id, text="Your payment was successful.")
-
     return redirect(f'https://t.me/{TELEGRAM_BOT_USERNAME}')
 
 @app.route('/cancel', methods=['GET'])
@@ -160,10 +167,11 @@ def payment_cancel():
 def create_customer_portal_session():
     user_id = request.args.get('user_id')
     
-    # Récupérer l'utilisateur et vérifier s'il a déjà un stripe_customer_id
-    user = session.query(User).filter_by(user_id=user_id).first()
-    if not user or not user.stripe_customer_id:
-        return "User has no active Stripe customer ID", 400
+    with session_scope() as session:
+        # Récupérer l'utilisateur et vérifier s'il a déjà un stripe_customer_id
+        user = session.query(User).filter_by(user_id=user_id).first()
+        if not user or not user.stripe_customer_id:
+            return "User has no active Stripe customer ID", 400
 
     stripe_customer_id = user.stripe_customer_id
 
@@ -175,17 +183,12 @@ def create_customer_portal_session():
 
     return redirect(portal_session.url)
 
-
-
 @app.route('/webhook', methods=['POST'])
 def webhook_received():
-    # You can use webhooks to receive information about asynchronous payment events.
-    # For more about our webhook events check out https://stripe.com/docs/webhooks.
     webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
     request_data = json.loads(request.data)
 
     if webhook_secret:
-        # Retrieve the event by verifying the signature using the raw body and secret if webhook signing is configured.
         signature = request.headers.get('stripe-signature')
         try:
             event = stripe.Webhook.construct_event(
@@ -193,7 +196,6 @@ def webhook_received():
             data = event['data']
         except Exception as e:
             return e
-        # Get the type of webhook event sent - used to check the status of PaymentIntents.
         event_type = event['type']
     else:
         data = request_data['data']
@@ -202,54 +204,44 @@ def webhook_received():
 
     print('event ' + event_type)
 
-   
     if event_type == 'invoice.paid':
         handle_invoice_paid(data_object)
         
     return jsonify({'status': 'success'})
 
-
 def handle_invoice_paid(data_object):
-    # Récupérer l'ID du client Stripe
     stripe_customer_id = data_object['customer']
-    
-    # Récupérer l'utilisateur associé à cet ID de client Stripe
-    user = session.query(User).filter_by(stripe_customer_id=stripe_customer_id).first()
 
-    if user:
-        # Récupérer la ligne d'abonnement de la facture
-        line_item = data_object['lines']['data'][0]
-        
-        # Récupérer les dates de début et de fin de la période de facturation
-        start_date_timestamp = line_item['period']['start']
-        end_date_timestamp = line_item['period']['end']
+    with session_scope() as session:
+        user = session.query(User).filter_by(stripe_customer_id=stripe_customer_id).first()
 
-        # Convertir les timestamps en datetime UTC
-        start_date = datetime.fromtimestamp(start_date_timestamp, tz=timezone.utc)
-        end_date = datetime.fromtimestamp(end_date_timestamp, tz=timezone.utc)
+        if user:
+            line_item = data_object['lines']['data'][0]
 
-        print(start_date)
-        print(end_date)
+            start_date_timestamp = line_item['period']['start']
+            end_date_timestamp = line_item['period']['end']
 
-        # Créer une nouvelle entrée dans la table subscriptions
-        new_subscription = Subscription(
-            user_id=user.user_id,
-            start_date=start_date,
-            end_date=end_date
-        )
+            start_date = datetime.fromtimestamp(start_date_timestamp, tz=timezone.utc)
+            end_date = datetime.fromtimestamp(end_date_timestamp, tz=timezone.utc)
 
-        # Ajouter et valider la nouvelle entrée
-        session.add(new_subscription)
-        session.commit()
-        print(f'🔔 Subscription created for user_id: {user.user_id}')
+            print(start_date)
+            print(end_date)
 
-    else:
-        print(f'User not found for stripe_customer_id: {stripe_customer_id}')
+            new_subscription = Subscription(
+                user_id=user.user_id,
+                start_date=start_date,
+                end_date=end_date
+            )
 
+            session.add(new_subscription)
+
+            print(f'🔔 Subscription created for user_id: {user.user_id}')
+
+        else:
+            print(f'User not found for stripe_customer_id: {stripe_customer_id}')
 
 print("Starting application...")
 
-# Configurer le logger pour envoyer les messages à stdout
 if __name__ != "__main__":
     gunicorn_logger = logging.getLogger('gunicorn.error')
     app.logger.handlers = gunicorn_logger.handlers
@@ -259,6 +251,3 @@ if __name__ == "__main__":
     port = int(os.environ.get('PORT', 3000))
     print(f"Running Flask application on port {port}...", flush=True)
     app.run(host='0.0.0.0', port=port)
-#,ssl_context=('cert.pem', 'key.pem')
-
-    
