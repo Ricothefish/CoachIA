@@ -39,12 +39,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not db_user:
             db_user = User(user_id=user.id, username=user.username)
             session.add(db_user)
-    await update.message.reply_text("Hello! I am Julie, your virtual confidant and life coach. I am here to listen and advise you.\n \nHowever, I do not replace a healthcare professional. If you have serious problems, contact a professional or a specialized service.\n \nYou can send me messages 💬 or voice notes 🔊\n \nLooking forward to chatting with you! 🌟")
+    await update.message.reply_text("Hello! I'm Julie, your virtual confidant and life coach. I'm here to listen and offer guidance whenever you need it.\nPlease note that I'm not a substitute for a healthcare professional. If you're facing serious issues, it's important to reach out to a professional or a specialized service.\nFeel free to send me messages 💬 or voice notes 🔊 anytime.\nI look forward to our conversations! 🌟")
+
 
 def check_user_quota(db_user):
     with session_scope() as session:
         user_message_count = session.query(Message).filter_by(user_id=db_user.user_id, is_sent_by_user=True).count()
-        if user_message_count >= 5:
+        if user_message_count >= 10:
             payment = session.query(Subscription).filter_by(user_id=db_user.user_id).order_by(Subscription.created_at.desc()).first()
             if not payment or not payment.end_date or payment.end_date < datetime.utcnow():
                 return False
